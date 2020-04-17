@@ -1,40 +1,48 @@
-local BasePlugin = require "kong.plugins.base_plugin"
-local responses = require "kong.tools.responses"
+local singletons = require "kong.singletons"
+local constants = require "kong.constants"
 local meta = require "kong.meta"
 
-local server_header = meta._NAME .. "/" .. meta._VERSION
 
-local RequestTerminationHandler = BasePlugin:extend()
+local kong = kong
+local server_header = meta._SERVER_TOKENS
 
-RequestTerminationHandler.PRIORITY = 7
-RequestTerminationHandler.VERSION = "0.1.0"
 
-function RequestTerminationHandler:new()
-  RequestTerminationHandler.super.new(self, "request-termination")
-end
+local DEFAULT_RESPONSE = {
+  [401] = "Unauthorized",
+  [404] = "Not found",
+  [405] = "Method not allowed",
+  [500] = "An unexpected error occurred",
+  [502] = "Bad Gateway",
+  [503] = "Service unavailable",
+}
+
+
+local RequestTerminationHandler = {}
+
+
+RequestTerminationHandler.PRIORITY = 2
+RequestTerminationHandler.VERSION = "2.0.0"
+
 
 function RequestTerminationHandler:access(conf)
-  RequestTerminationHandler.super.access(self)
+  local status  = conf.status_code
+  local content = conf.body
 
-  local status_code = conf.status_code
-  local content_type = conf.content_type
-  local body = conf.body
-  local message = conf.message
-  if body then
-    ngx.status = status_code
+  if content then
+    local headers = {
+      ["Content-Type"] = conf.content_type
+    }
 
-    if not content_type then
-      content_type = "application/json; charset=utf-8";
+    if singletons.configuration.enabled_headers[constants.HEADERS.SERVER] then
+      headers[constants.HEADERS.SERVER] = server_header
     end
-    ngx.header["Content-Type"] = content_type
-    ngx.header["Server"] = server_header
 
-    ngx.say(body)
-
-    return ngx.exit(status_code)
-   else
-    return responses.send(status_code, message)
+    return kong.response.exit(status, content, headers)
   end
+
+  local message = conf.message or DEFAULT_RESPONSE[status]
+  return kong.response.exit(status, message and { message = message } or nil)
 end
+
 
 return RequestTerminationHandler

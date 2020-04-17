@@ -1,207 +1,176 @@
-local crud = require "kong.api.crud_helpers"
-local app_helpers = require "lapis.application"
-local responses = require "kong.tools.responses"
-local cjson = require "cjson"
+local endpoints = require "kong.api.endpoints"
+local utils = require "kong.tools.utils"
 
 
--- clean the target history for a given upstream
-local function clean_history(upstream_id, dao_factory)
-  -- when to cleanup: invalid-entries > (valid-ones * cleanup_factor)
-  local cleanup_factor = 10
+local kong = kong
+local escape_uri = ngx.escape_uri
+local unescape_uri = ngx.unescape_uri
+local null = ngx.null
+local fmt = string.format
 
-  --cleaning up history, check if it's necessary...
-  local target_history = dao_factory.targets:find_all({
-    upstream_id = upstream_id
-  })
 
-  if target_history then
-    -- sort the targets
-    for _,target in ipairs(target_history) do
-      target.order = target.created_at .. ":" .. target.id
-    end
-
-    -- sort table in reverse order
-    table.sort(target_history, function(a,b) return a.order>b.order end)
-    -- do clean up
-    local cleaned = {}
-    local delete = {}
-
-    for _, entry in ipairs(target_history) do
-      if cleaned[entry.target] then
-        -- we got a newer entry for this target than this, so this one can go
-        delete[#delete+1] = entry
-
-      else
-        -- haven't got this one, so this is the last one for this target
-        cleaned[entry.target] = true
-        cleaned[#cleaned+1] = entry
-        if entry.weight == 0 then
-          delete[#delete+1] = entry
-        end
-      end
-    end
-
-    -- do we need to cleanup?
-    -- either nothing left, or when 10x more outdated than active entries
-    if (#cleaned == 0 and #delete > 0) or
-       (#delete >= (math.max(#cleaned,1)*cleanup_factor)) then
-
-      ngx.log(ngx.INFO, "[admin api] Starting cleanup of target table for upstream ",
-                        tostring(upstream_id))
-      local cnt = 0
-      for _, entry in ipairs(delete) do
-        -- not sending update events, one event at the end, based on the
-        -- post of the new entry should suffice to reload only once
-        dao_factory.targets:delete(
-          { id = entry.id },
-          { quiet = true }
-        )
-        -- ignoring errors here, deleted by id, so should not matter
-        -- in case another kong-node does the same cleanup simultaneously
-        cnt = cnt + 1
-      end
-
-      ngx.log(ngx.INFO, "[admin api] Finished cleanup of target table",
-        " for upstream ", tostring(upstream_id),
-        " removed ", tostring(cnt), " target entries")
-    end
+local function post_health(self, db, is_healthy)
+  local upstream, _, err_t = endpoints.select_entity(self, db, db.upstreams.schema)
+  if err_t then
+    return endpoints.handle_error(err_t)
   end
+
+  if not upstream then
+    return kong.response.exit(404, { message = "Not found" })
+  end
+
+  local target
+  if utils.is_valid_uuid(unescape_uri(self.params.targets)) then
+    target, _, err_t = endpoints.select_entity(self, db, db.targets.schema)
+
+  else
+    local opts = endpoints.extract_options(self.args.uri, db.targets.schema, "select")
+    local upstream_pk = db.upstreams.schema:extract_pk_values(upstream)
+    local filter = { target = unescape_uri(self.params.targets) }
+    target, _, err_t = db.targets:select_by_upstream_filter(upstream_pk, filter, opts)
+  end
+
+  if err_t then
+    return endpoints.handle_error(err_t)
+  end
+
+  if not target or target.upstream.id ~= upstream.id then
+    return kong.response.exit(404, { message = "Not found" })
+  end
+
+  local ok, err = db.targets:post_health(upstream, target, self.params.address, is_healthy)
+  if not ok then
+    return kong.response.exit(400, { message = err })
+  end
+
+  return kong.response.exit(204)
 end
 
+
 return {
-  ["/upstreams/"] = {
-    GET = function(self, dao_factory)
-      crud.paginated_set(self, dao_factory.upstreams)
-    end,
-
-    PUT = function(self, dao_factory)
-      crud.put(self.params, dao_factory.upstreams)
-    end,
-
-    POST = function(self, dao_factory, helpers)
-      crud.post(self.params, dao_factory.upstreams)
-    end
-  },
-
-  ["/upstreams/:upstream_name_or_id"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_upstream_by_name_or_id(self, dao_factory, helpers)
-    end,
-
-    GET = function(self, dao_factory, helpers)
-      return helpers.responses.send_HTTP_OK(self.upstream)
-    end,
-
-    PATCH = function(self, dao_factory)
-      crud.patch(self.params, dao_factory.upstreams, self.upstream)
-    end,
-
-    DELETE = function(self, dao_factory)
-      crud.delete(self.upstream, dao_factory.upstreams)
-    end
-  },
-
-  ["/upstreams/:upstream_name_or_id/targets/"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_upstream_by_name_or_id(self, dao_factory, helpers)
-      self.params.upstream_id = self.upstream.id
-    end,
-
-    GET = function(self, dao_factory)
-      crud.paginated_set(self, dao_factory.targets)
-    end,
-
-    POST = function(self, dao_factory, helpers)
-      clean_history(self.params.upstream_id, dao_factory)
-
-      crud.post(self.params, dao_factory.targets)
-    end,
-  },
-
-  ["/upstreams/:upstream_name_or_id/targets/active"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_upstream_by_name_or_id(self, dao_factory, helpers)
-      self.params.upstream_id = self.upstream.id
-    end,
-
-    GET = function(self, dao_factory)
-      self.params.active = nil
-
-      local target_history, err = dao_factory.targets:find_all({
-        upstream_id = self.params.upstream_id,
-      })
-      if not target_history then
-        return app_helpers.yield_error(err)
+  ["/upstreams/:upstreams/health"] = {
+    GET = function(self, db)
+      local upstream, _, err_t = endpoints.select_entity(self, db, db.upstreams.schema)
+      if err_t then
+        return endpoints.handle_error(err_t)
       end
 
-      --sort and walk based on target and creation time
-      for _, target in ipairs(target_history) do
-        target.order = target.target .. ":" ..
-          target.created_at .. ":" .. target.id
-      end
-      table.sort(target_history, function(a, b) return a.order > b.order end)
-
-      local seen     = {}
-      local active   = setmetatable({}, cjson.empty_array_mt)
-      local active_n = 0
-
-      for _, entry in ipairs(target_history) do
-        if not seen[entry.target] then
-          if entry.weight == 0 then
-            seen[entry.target] = true
-
-          else
-            entry.order = nil -- dont show our order key to the client
-
-            -- add what we want to send to the client in our array
-            active_n = active_n + 1
-            active[active_n] = entry
-
-            -- track that we found this host:port so we only show
-            -- the most recent one (kinda)
-            seen[entry.target] = true
-          end
-        end
+      if not upstream then
+        return kong.response.exit(404, { message = "Not found" })
       end
 
-      -- FIXME: remove and stick to previous `empty_array_mt` metatable
-      -- assignment once https://github.com/openresty/lua-cjson/pull/16
-      -- is included in the OpenResty release we use.
-      if #active == 0 then
-        active = cjson.empty_array
-      end
-
-
-      -- for now lets not worry about rolling our own pagination
-      -- we also end up returning a "backwards" list of targets because
-      -- of how we sorted- do we care?
-      return responses.send_HTTP_OK {
-        total = active_n,
-        data  = active,
-      }
-    end
-  },
-
-  ["/upstreams/:upstream_name_or_id/targets/:target_or_id"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_upstream_by_name_or_id(self, dao_factory, helpers)
-      crud.find_target_by_target_or_id(self, dao_factory, helpers)
-    end,
-
-    DELETE = function(self, dao_factory)
-      clean_history(self.upstream.id, dao_factory)
-
-      -- this is just a wrapper around POSTing a new target with weight=0
-      local _, err = dao_factory.targets:insert({
-        target      = self.target.target,
-        upstream_id = self.upstream.id,
-        weight      = 0,
-      })
+      local node_id, err = kong.node.get_id()
       if err then
-        return app_helpers.yield_error(err)
+        kong.log.err("failed to get node id: ", err)
       end
 
-      return responses.send_HTTP_NO_CONTENT()
+      if tostring(self.params.balancer_health) == "1" then
+        local upstream_pk = db.upstreams.schema:extract_pk_values(upstream)
+        local balancer_health  = db.targets:get_balancer_health(upstream_pk)
+        return kong.response.exit(200, {
+          data = balancer_health,
+          next = null,
+          node_id = node_id,
+        })
+      end
+
+      self.params.targets = db.upstreams.schema:extract_pk_values(upstream)
+      local targets_with_health, _, err_t, offset =
+        endpoints.page_collection(self, db, db.targets.schema, "page_for_upstream_with_health")
+
+      if err_t then
+        return endpoints.handle_error(err_t)
+      end
+
+      local next_page = offset and fmt("/upstreams/%s/health?offset=%s",
+                                       self.params.upstreams,
+                                       escape_uri(offset)) or null
+
+      return kong.response.exit(200, {
+        data    = targets_with_health,
+        offset  = offset,
+        next    = next_page,
+        node_id = node_id,
+      })
     end
-  }
+  },
+
+  ["/upstreams/:upstreams/targets"] = {
+    GET = endpoints.get_collection_endpoint(kong.db.targets.schema,
+                                            kong.db.upstreams.schema,
+                                            "upstream",
+                                            "page_for_upstream"),
+  },
+
+  ["/upstreams/:upstreams/targets/all"] = {
+    GET = endpoints.get_collection_endpoint(kong.db.targets.schema,
+                                            kong.db.upstreams.schema,
+                                            "upstream",
+                                            "page_for_upstream_raw")
+  },
+
+  ["/upstreams/:upstreams/targets/:targets/healthy"] = {
+    POST = function(self, db)
+      return post_health(self, db, true)
+    end,
+  },
+
+  ["/upstreams/:upstreams/targets/:targets/unhealthy"] = {
+    POST = function(self, db)
+      return post_health(self, db, false)
+    end,
+  },
+
+  ["/upstreams/:upstreams/targets/:targets/:address/healthy"] = {
+    POST = function(self, db)
+      return post_health(self, db, true)
+    end,
+  },
+
+  ["/upstreams/:upstreams/targets/:targets/:address/unhealthy"] = {
+    POST = function(self, db)
+      return post_health(self, db, false)
+    end,
+  },
+
+  ["/upstreams/:upstreams/targets/:targets"] = {
+    DELETE = function(self, db)
+      local upstream, _, err_t = endpoints.select_entity(self, db, db.upstreams.schema)
+      if err_t then
+        return endpoints.handle_error(err_t)
+      end
+
+      if not upstream then
+        return kong.response.exit(404, { message = "Not found" })
+      end
+
+      local target
+      if utils.is_valid_uuid(unescape_uri(self.params.targets)) then
+        target, _, err_t = endpoints.select_entity(self, db, db.targets.schema)
+
+      else
+        local opts = endpoints.extract_options(self.args.uri, db.targets.schema, "select")
+        local upstream_pk = db.upstreams.schema:extract_pk_values(upstream)
+        local filter = { target = unescape_uri(self.params.targets) }
+        target, _, err_t = db.targets:select_by_upstream_filter(upstream_pk, filter, opts)
+      end
+
+      if err_t then
+        return endpoints.handle_error(err_t)
+      end
+
+      if not target or target.upstream.id ~= upstream.id then
+        return kong.response.exit(404, { message = "Not found" })
+      end
+
+      self.params.targets = db.upstreams.schema:extract_pk_values(target)
+      _, _, err_t = endpoints.delete_entity(self, db, db.targets.schema)
+      if err_t then
+        return endpoints.handle_error(err_t)
+      end
+
+      return kong.response.exit(204) -- no content
+    end
+  },
 }
+

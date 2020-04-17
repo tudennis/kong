@@ -1,26 +1,37 @@
-local utils = require "kong.tools.utils"
+local typedefs = require "kong.db.schema.typedefs"
 
-local function check_user(anonymous)
-  if anonymous == "" or utils.is_valid_uuid(anonymous) then
-    return true
-  end
-  
-  return false, "the anonymous user must be empty or a valid uuid"
-end
+-- If you add more configuration parameters, be sure to check if it needs to be added to cache key
+-- Fields currently used for cache_key: ldap_host, ldap_port, base_dn, attribute, cache_ttl
 
 return {
-  no_consumer = true,
+  name = "ldap-auth",
   fields = {
-    ldap_host = {required = true, type = "string"},
-    ldap_port = {required = true, type = "number"},
-    start_tls = {required = true, type = "boolean", default = false},
-    verify_ldap_host = {required = true, type = "boolean", default = false},
-    base_dn = {required = true, type = "string"},
-    attribute = {required = true, type = "string"},
-    cache_ttl = {required = true, type = "number", default = 60},
-    hide_credentials = {type = "boolean", default = false},
-    timeout = {type = "number", default = 10000},
-    keepalive = {type = "number", default = 60000},
-    anonymous = {type = "string", default = "", func = check_user},
-  }
+    { consumer = typedefs.no_consumer },
+    { protocols = typedefs.protocols_http },
+    { config = {
+        type = "record",
+        fields = {
+          { ldap_host = typedefs.host({ required = true }), },
+          { ldap_port = typedefs.port({ required = true }), },
+          { ldaps = { required = true, type = "boolean", default = false } },
+          { start_tls = { type = "boolean", required = true, default = false }, },
+          { verify_ldap_host = { type = "boolean", required = true, default = false }, },
+          { base_dn = { type = "string", required = true }, },
+          { attribute = { type = "string", required = true }, },
+          { cache_ttl = { type = "number", required = true, default = 60 }, },
+          { hide_credentials = { type = "boolean", default = false }, },
+          { timeout = { type = "number", default = 10000 }, },
+          { keepalive = { type = "number", default = 60000 }, },
+          { anonymous = { type = "string" }, },
+          { header_type = { type = "string", default = "ldap" }, },
+        },
+        entity_checks = {
+          { conditional = {
+            if_field   = "ldaps",     if_match   = { eq = true },
+            then_field = "start_tls", then_match = { eq = false },
+            then_err   = "'ldaps' and 'start_tls' cannot be enabled simultaneously"
+          } },
+        }
+    }, },
+  },
 }

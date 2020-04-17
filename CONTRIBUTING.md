@@ -14,6 +14,7 @@ Consult the Table of Contents below, and jump to the desired section.
   - [Enterprise Edition](#enterprise-edition)
   - [Community Edition](#community-edition)
 - [Where to report bugs?](#where-to-report-bugs)
+- [Where to submit feature requests?](#where-to-submit-feature-requests)
 - [Contributing](#contributing)
   - [Improving the documentation](#improving-the-documentation)
   - [Proposing a new plugin](#proposing-a-new-plugin)
@@ -24,8 +25,8 @@ Consult the Table of Contents below, and jump to the desired section.
     - [Static linting](#static-linting)
     - [Writing tests](#writing-tests)
     - [Writing performant code](#writing-performant-code)
+  - [Contributor T-shirt](#contributor-t-shirt)
 - [Code style](#code-style)
-
 
 ## Where to seek for help?
 
@@ -33,31 +34,31 @@ Consult the Table of Contents below, and jump to the desired section.
 
 If you are a Kong Enterprise customer, contact the Enterprise Support channels
 by opening an Enterprise support ticket on
-[https://support.mashape.com](https://support.mashape.com/).
+[https://support.konghq.com](https://support.konghq.com/).
 
 If you are experiencing a P1 issue, please call the [24/7 Enterprise Support
-phone line](https://support.mashape.com/hc/en-us/articles/115004921808-Telephone-Support)
+phone line](https://support.konghq.com/hc/en-us/articles/115004921808-Telephone-Support)
 for immediate assistance, as published in the Customer Success Reference Guide.
 
 If you are interested in becoming a Kong Enterprise customer, please visit
-https://www.mashape.com/enterprise/ or contact us at
-[sales@mashape.com](mailto:sales@mashape.com).
+https://konghq.com/kong-enterprise-edition/ or contact us at
+[sales@konghq.com](mailto:sales@konghq.com).
 
 [Back to TOC](#table-of-contents)
-
 
 ### Community Edition
 
 There are several channels where you can get answers from the community
 or the maintainers of this project:
 
-- The mailing list, hosted on the [konglayer Google
-  Group](https://groups.google.com/forum/#!forum/konglayer) for asynchronous
-  and lengthy chatter
-- Gitter, for faster, but more ephemeral conversations. The room is
-  hosted at https://gitter.im/Mashape/kong
-- The IRC channel, registered on freenode as [#kong
-  ](https://webchat.freenode.net/?channels=kong)
+- Our public forum, [Kong Nation](https://discuss.konghq.com), is great for
+  asking questions, giving advice, and staying up-to-date with the latest
+  announcements. Kong Nation is frequented by Kong maintainers.
+- Two chat channels are used by the community, but are rarely visited by Kong
+  maintainers:
+  - [Gitter](https://gitter.im/Kong/kong)
+  - IRC, registered on freenode as
+    [#kong](https://webchat.freenode.net/?channels=kong)
 
 **Please avoid opening GitHub issues for general questions or help**, as those
 should be reserved for actual bug reports. The Kong community is welcoming and
@@ -65,10 +66,9 @@ more than willing to assist you on those channels!
 
 [Back to TOC](#table-of-contents)
 
-
 ## Where to report bugs?
 
-Feel free to [submit an issue](https://github.com/Kong/kong/issues/new) on
+Feel free to [submit an issue](https://github.com/Kong/kong/issues/new/choose) on
 the GitHub repository, we would be grateful to hear about it! Please make sure
 to respect the GitHub issue template, and include:
 
@@ -83,6 +83,15 @@ on how to best do so.
 
 [Back to TOC](#table-of-contents)
 
+## Where to submit feature requests?
+
+You can [submit an issue](https://github.com/Kong/kong/issues/new/choose) for feature
+requests. Please add as much detail as you can when doing so.
+
+You are also welcome to propose patches adding new features. See the section
+on [Submitting a patch](#submitting-a-patch) for details.
+
+[Back to TOC](#table-of-contents)
 
 ## Contributing
 
@@ -93,7 +102,7 @@ make without coding:
 - Reporting a bug (see the [report bugs](#where-to-report-bugs) section)
 - Helping other members of the community on the support channels
 - Fixing a typo in the code
-- Fixing a typo in the documentation at https://getkong.org (see
+- Fixing a typo in the documentation at https://docs.konghq.com (see
   the [documentation contribution](#improving-the-documentation) section)
 - Providing your feedback on the proposed features and designs
 - Reviewing Pull Requests
@@ -103,34 +112,17 @@ patch](#submitting-a-patch) section.
 
 [Back to TOC](#table-of-contents)
 
-
 ### Improving the documentation
 
-The documentation hosted at https://getkong.org is open source and built with
-[Jekyll](https://jekyllrb.com/). You are welcome to propose changes to it
-(correct typos, add examples or clarifications...)!
+The documentation hosted at https://docs.konghq.com is open source and built
+with [Jekyll](https://jekyllrb.com/). You are welcome to propose changes to it
+(correct typos, add examples or clarifications...) and contribute to the
+[Kong Hub](https://docs.konghq.com/hub/)!
 
 The repository is also hosted on GitHub at:
-https://github.com/Kong/getkong.org/
-
-To run and test your changes locally, follow the installation instructions in
-its README.md. You will need Ruby, Node.js (for npm), and Python 2.7 on your
-system.
-
-When contributing, be weary of a few things:
-
-- The plugins documentation lives in the `app/plugins` directory. **This part
-  of the documentation is not versioned**, which means that the plugins
-  documentation is always reflecting the state of their latest release. This is
-  something we will be improving in the future.
-- The core documentation lives in `app/docs/x.x.x`. **This part is versioned**.
-  When proposing a change in this part of the documentation, consider proposing
-  it for older versions as well.
-  Example: if you fix a typo in `app/docs/0.10.x/configuration.md`, this typo
-  may also be present in `app/docs/0.9.x/configuration.md`.
+https://github.com/Kong/docs.konghq.com/
 
 [Back to TOC](#table-of-contents)
-
 
 ### Proposing a new plugin
 
@@ -140,28 +132,23 @@ will be pushed into separate repositories in the foreseeable future.
 
 If you wish to write a new plugin for your own needs, you should start by
 reading the [Plugin Development
-Guide](https://getkong.org/docs/latest/plugin-development).
+Guide](https://docs.konghq.com/latest/plugin-development).
 
 If you already wrote a plugin, and are thinking about making it available to
 the community, we strongly encourage you to host it on a publicly available
-repository (like GitHub), and to distribute it via LuaRocks. A good resource on
-how to do so is the [Distribution
-Section](https://getkong.org/docs/latest/plugin-development/distribution/#distribute-your-plugin)
+repository (like GitHub), and to distribute it via
+[LuaRocks](https://luarocks.org/search?q=kong). A good resource on how to do
+so is the [Distribution
+Section](https://docs.konghq.com/latest/plugin-development/distribution/#distributing-your-plugin)
 of the Plugin Development Guide.
 
-To give visibility to your plugin, we advise that you post an announcement
-thread on the [mailing
-list](https://groups.google.com/forum/#!forum/konglayer). A good title for such
-an announcement would be something like:
+To give visibility to your plugin, we advise that you:
 
-```
-[ANN] Community Plugin - [plugin name] [plugin version]
-```
-
-In the foreseeable future, we will also include a "Community Plugins" section
-to the online [Plugins Gallery](https://getkong.org/plugins/), and we will
-improve how plugins are distributed and installed on Kong nodes. Stay tuned!
-:wink:
+1. [Add your
+   plugin](https://github.com/Kong/docs.konghq.com/blob/master/CONTRIBUTING.md#contributing-to-kong-documentation-and-the-kong-hub)
+   to the [Kong Hub](https://docs.konghq.com/hub/)
+2. Create a post in the [Announcements category of Kong
+   Nation](https://discuss.konghq.com/c/announcements)
 
 [Back to TOC](#table-of-contents)
 
@@ -200,13 +187,15 @@ If you are asked to update your patch by a reviewer, please do so! Remember:
 you are probably the one in need of it. You must be prepared to apply changes
 to it if necessary.
 
-If your Pull Request was accepted, congratulations! You are now an official
-contributor of Kong. Your change will be included in the subsequent release
-Changelog, and we will not forget to include your name if you are an external
-contributor. :wink:
+If your Pull Request was accepted and fixes a bug, adds functionality, or
+makes it significantly easier to use or understand Kong, congratulations!
+You are now an official contributor to Kong. Get in touch with us to receive
+your very own [Contributor T-shirt](#contributor-t-shirt)!
+
+Your change will be included in the subsequent release Changelog, and we will
+not forget to include your name if you are an external contributor. :wink:
 
 [Back to TOC](#table-of-contents)
-
 
 #### Git branches
 
@@ -229,7 +218,6 @@ naming scheme when pushing your branch(es):
 
 [Back to TOC](#table-of-contents)
 
-
 #### Commit atomicity
 
 When submitting patches, it is important that you organize your commits in
@@ -238,11 +226,11 @@ commits, as long as their atomicity is respected. This means that no unrelated
 changes should be included in a commit.
 
 For example: you are writing a patch to fix a bug, but in your endeavour, you
-spot another bug. **Do not fix both bugs in the same commit!**. Finish your
+spot another bug. **Do not fix both bugs in the same commit!** Finish your
 work on the initial bug, propose your patch, and come back to the second bug
-later on. This is also valid for unrelated style fixes, refactorings, etc...
+later on. This is also valid for unrelated style fixes, refactors, etc...
 
-You should use your best judgement when facing such decisions. A good approach
+You should use your best judgment when facing such decisions. A good approach
 for this is to put yourself in the shoes of the person who will review your
 patch: will they understand your changes and reasoning just by reading your
 commit history? Will they find unrelated changes in a particular commit? They
@@ -252,7 +240,6 @@ Writing meaningful commit messages that follow our commit message format will
 also help you respect this mantra (see the below section).
 
 [Back to TOC](#table-of-contents)
-
 
 #### Commit message format
 
@@ -275,7 +262,6 @@ Here is a template of what your commit message should look like:
 <footer>
 ```
 
-
 ##### Type
 
 The type of your commit indicates what type of change this commit is about. The
@@ -295,7 +281,6 @@ accepted types are:
 - **chore**: Maintenance changes related to code cleaning that isn't
   considered part of a refactor, build process updates, dependency bumps, or
   auxiliary tools and libraries updates (LuaRocks, Travis-ci, etc...).
-
 
 ##### Scope
 
@@ -319,7 +304,6 @@ it is at your discretion, but here are some of the most frequent ones:
 - `*`: When the change affects too many parts of the codebase at once (this
   should be rare and avoided)
 
-
 ##### Subject
 
 Your subject should contain a succinct description of the change. It should be
@@ -328,7 +312,6 @@ written so that:
 - It uses the present, imperative tense: "fix typo", and not "fixed" or "fixes"
 - It is **not** capitalized: "fix typo", and not "Fix typo"
 - It does **not** include a period. :smile:
-
 
 ##### Body
 
@@ -339,12 +322,10 @@ motivation, the chosen implementation, and justify it.
 As previously mentioned, lines in the commit messages should not exceed 72
 characters.
 
-
 ##### Footer
 
 The footer is the ideal place to link to related material about the change:
 related GitHub issues, Pull Requests, fixed bug reports, etc...
-
 
 ##### Examples
 
@@ -378,7 +359,6 @@ the case.
 
 [Back to TOC](#table-of-contents)
 
-
 #### Static linting
 
 As mentioned in the guidelines to submit a patch, the linter must succeed. We
@@ -396,7 +376,6 @@ $ luacheck .
 ```
 
 [Back to TOC](#table-of-contents)
-
 
 #### Writing tests
 
@@ -444,7 +423,6 @@ assert.same(t1, t2)
 ```
 
 [Back to TOC](#table-of-contents)
-
 
 #### Writing performant code
 
@@ -508,13 +486,27 @@ practices:
   end
   ```
 
-And finally, most importantly: use your best judgement to design an
+And finally, most importantly: use your best judgment to design an
 efficient algorithm. Doing so will always be more performant than a
 poorly-designed algorithm, even following all the performance tricks of the
 language you are using. :smile:
 
 [Back to TOC](#table-of-contents)
 
+### Contributor T-shirt
+
+If your Pull Request to [Kong/kong](https://github.com/Kong/kong) was
+accepted, and it fixes a bug, adds functionality, or makes it significantly
+easier to use or understand Kong, congratulations! You are eligible to
+receive the very special Contributor T-shirt! Go ahead and fill out the
+[Contributors Submissions form](https://goo.gl/forms/5w6mxLaE4tz2YM0L2).
+
+Proudly wear your T-shirt and show it to us by tagging
+[@thekonginc](https://twitter.com/thekonginc) on Twitter!
+
+![Kong Contributor T-shirt](https://konghq.com/wp-content/uploads/2018/04/100-contributor-t-shirt-1024x768.jpg)
+
+[Back to TOC](#table-of-contents)
 
 ## Code style
 
@@ -528,14 +520,13 @@ contributors should find themselves at ease when contributing to Kong.
 - Indentation should consist of 2 spaces
 
 When you are unsure about the style to adopt, please browse other parts of the
-code base to find a similar case, and stay consistent with it.
+codebase to find a similar case, and stay consistent with it.
 
 You might also notice places in the code base where the described style is not
 respected. This is due to legacy code. **Contributions to update the code to
 the recommended style are welcome!**
 
 [Back to TOC](#table-of-contents)
-
 
 ### Table of Contents - Code style
 
@@ -545,7 +536,6 @@ the recommended style are welcome!**
 - [Strings](#strings)
 - [Functions](#functions)
 - [Conditional expressions](#conditional-expressions)
-
 
 ### Modules
 
@@ -574,7 +564,6 @@ return _M
 
 [Back to code style TOC](#table-of-contents---code-style)
 
-
 ### Variables
 
 When naming a variable or function, **do** use snake_case:
@@ -597,21 +586,7 @@ local max_len = 100
 local MAX_LEN = 100
 ```
 
-When assigning several variables on consecutive lines, **do** align their
-assignment operator:
-
-```lua
--- bad
-local str = "world"
-local my_value = "hello"
-
--- good
-local str      = "world"
-local my_value = "hello"
-```
-
 [Back to code style TOC](#table-of-contents---code-style)
-
 
 ### Tables
 
@@ -641,27 +616,30 @@ local t = {foo="hello",bar="world"}
 local t = { foo = "hello", bar = "world" }
 ```
 
-When using the constructor syntax on multiple lines, **do** align the
-assignments:
+[Back to code style TOC](#table-of-contents---code-style)
+
+### Strings
+
+**Do** favor the use of double quotes in all Lua code (plain files and
+`*_by_lua_block` directives):
 
 ```lua
 -- bad
-local t = {
-  some_key = "hello",
-  some_other_key = "world",
-}
+local str = 'hello'
 
 -- good
-local t = {
-  some_key       = "hello",
-  some_other_key = "world",
-}
+local str = "hello"
 ```
 
-[Back to code style TOC](#table-of-contents---code-style)
+If a string contains double quotes, **do** favor long bracket strings:
 
+```lua
+-- bad
+local str = "message: \"hello\""
 
-### Strings
+-- good
+local str = [[message: "hello"]]
+```
 
 When using the concatenation operator, **do** insert spaces around it:
 
@@ -674,7 +652,6 @@ local str = "hello " .. "world"
 ```
 
 [Back to code style TOC](#table-of-contents---code-style)
-
 
 ### Functions
 
@@ -756,7 +733,6 @@ local str = string.format("SELECT * FROM users WHERE first_name = '%s'",
 ```
 
 [Back to code style TOC](#table-of-contents---code-style)
-
 
 ### Conditional expressions
 
@@ -885,5 +861,3 @@ end
 ```
 
 [Back to code style TOC](#table-of-contents---code-style)
-
-

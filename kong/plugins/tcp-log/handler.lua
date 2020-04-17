@@ -1,11 +1,10 @@
-local BasePlugin = require "kong.plugins.base_plugin"
 local basic_serializer = require "kong.plugins.log-serializers.basic"
 local cjson = require "cjson"
 
-local TcpLogHandler = BasePlugin:extend()
+local TcpLogHandler = {}
 
-TcpLogHandler.PRIORITY = 2
-TcpLogHandler.VERSION = "0.1.0"
+TcpLogHandler.PRIORITY = 7
+TcpLogHandler.VERSION = "2.0.0"
 
 local function log(premature, conf, message)
   if premature then
@@ -27,7 +26,16 @@ local function log(premature, conf, message)
     return
   end
 
-  ok, err = sock:send(cjson.encode(message) .. "\r\n")
+  if conf.tls then
+    ok, err = sock:sslhandshake(true, conf.tls_sni, false)
+    if not ok then
+      ngx.log(ngx.ERR, "[tcp-log] failed to perform TLS handshake to ",
+                       host, ":", port, ": ", err)
+      return
+    end
+  end
+
+  ok, err = sock:send(cjson.encode(message) .. "\n")
   if not ok then
     ngx.log(ngx.ERR, "[tcp-log] failed to send data to " .. host .. ":" .. tostring(port) .. ": ", err)
   end
@@ -39,13 +47,7 @@ local function log(premature, conf, message)
   end
 end
 
-function TcpLogHandler:new()
-  TcpLogHandler.super.new(self, "tcp-log")
-end
-
 function TcpLogHandler:log(conf)
-  TcpLogHandler.super.log(self)
-
   local message = basic_serializer.serialize(ngx)
   local ok, err = ngx.timer.at(0, log, conf, message)
   if not ok then

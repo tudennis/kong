@@ -4,11 +4,13 @@ local meta = require "kong.meta"
 local pl_path = require "pl.path"
 local version = require "version"
 local pl_utils = require "pl.utils"
+local pl_stringx = require "pl.stringx"
 local fmt = string.format
 
 local nginx_bin_name = "nginx"
 local nginx_search_paths = {
   "/usr/local/openresty/nginx/sbin",
+  "/opt/openresty/nginx/sbin",
   ""
 }
 local nginx_version_pattern = "^nginx.-openresty.-([%d%.]+)"
@@ -48,13 +50,24 @@ end
 
 local _M = {}
 
-local function find_nginx_bin()
+function _M.find_nginx_bin()
   log.debug("searching for OpenResty 'nginx' executable")
 
   local found
   for _, path in ipairs(nginx_search_paths) do
     local path_to_check = pl_path.join(path, nginx_bin_name)
     if is_openresty(path_to_check) then
+      if path_to_check == "nginx" then
+        log.debug("finding executable absolute path from $PATH...")
+        local ok, code, stdout, stderr = pl_utils.executeex("command -v nginx")
+        if ok and code == 0 then
+          path_to_check = pl_stringx.strip(stdout)
+
+        else
+          log.error("could not find executable absolute path: %s", stderr)
+        end
+      end
+
       found = path_to_check
       log.debug("found OpenResty 'nginx' executable at %s", found)
       break
@@ -70,7 +83,7 @@ local function find_nginx_bin()
 end
 
 function _M.start(kong_conf)
-  local nginx_bin, err = find_nginx_bin()
+  local nginx_bin, err = _M.find_nginx_bin()
   if not nginx_bin then
     return nil, err
   end
@@ -83,12 +96,45 @@ function _M.start(kong_conf)
 
   log.debug("starting nginx: %s", cmd)
 
-  local ok, _, _, stderr = pl_utils.executeex(cmd)
-  if not ok then
-    return nil, stderr
+  if kong_conf.nginx_main_daemon == "on" then
+    -- running as daemon: capture command output to temp files using the
+    -- "executeex" method
+    local ok, _, _, stderr = pl_utils.executeex(cmd)
+    if not ok then
+      return nil, stderr
+    end
+
+    log.debug("nginx started")
+
+  else
+    -- running in foreground: do not redirect output since long running
+    -- processes would produce output filling the disk, use "execute" without
+    -- redirection instead.
+    local ok, retcode = pl_utils.execute(cmd)
+    if not ok then
+      return nil, ("failed to start nginx (exit code: %s)"):format(retcode)
+    end
   end
 
-  log.debug("nginx started")
+  return true
+end
+
+function _M.check_conf(kong_conf)
+  local nginx_bin, err = _M.find_nginx_bin()
+  if not nginx_bin then
+    return nil, err
+  end
+
+  local cmd = fmt("KONG_NGINX_CONF_CHECK=true %s -t -p %s -c %s",
+                  nginx_bin, kong_conf.prefix, "nginx.conf")
+
+  log.debug("testing nginx configuration: %s", cmd)
+
+  local ok, retcode, _, stderr = pl_utils.executeex(cmd)
+  if not ok then
+    return nil, ("nginx configuration is invalid " ..
+                 "(exit code %d):\n%s"):format(retcode, stderr)
+  end
 
   return true
 end
@@ -106,7 +152,7 @@ function _M.reload(kong_conf)
     return nil, "nginx not running in prefix: " .. kong_conf.prefix
   end
 
-  local nginx_bin, err = find_nginx_bin()
+  local nginx_bin, err = _M.find_nginx_bin()
   if not nginx_bin then
     return nil, err
   end

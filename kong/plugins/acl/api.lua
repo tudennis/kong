@@ -1,57 +1,60 @@
-local crud = require "kong.api.crud_helpers"
+local endpoints   = require "kong.api.endpoints"
+local utils       = require "kong.tools.utils"
+
+
+local ngx = ngx
+local kong = kong
+local escape_uri = ngx.escape_uri
+local unescape_uri = ngx.unescape_uri
+
 
 return {
-  ["/consumers/:username_or_id/acls/"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_consumer_by_username_or_id(self, dao_factory, helpers)
-      self.params.consumer_id = self.consumer.id
-    end,
+  ["/consumers/:consumers/acls/:acls"] = {
+    schema = kong.db.acls.schema,
+    before = function(self, db, helpers)
+      local group = unescape_uri(self.params.acls)
+      if not utils.is_valid_uuid(group) then
+        local consumer_id = unescape_uri(self.params.consumers)
 
-    GET = function(self, dao_factory)
-      crud.paginated_set(self, dao_factory.acls)
-    end,
+        if not utils.is_valid_uuid(consumer_id) then
+          local consumer, _, err_t = endpoints.select_entity(self, db, db.consumers.schema)
+          if err_t then
+            return endpoints.handle_error(err_t)
+          end
 
-    PUT = function(self, dao_factory)
-      crud.put(self.params, dao_factory.acls)
-    end,
+          if not consumer then
+            return kong.response.exit(404, { message = "Not found" })
+          end
 
-    POST = function(self, dao_factory)
-      crud.post(self.params, dao_factory.acls)
-    end
-  },
+          consumer_id = consumer.id
+        end
 
-  ["/consumers/:username_or_id/acls/:group_or_id"] = {
-    before = function(self, dao_factory, helpers)
-      crud.find_consumer_by_username_or_id(self, dao_factory, helpers)
-      self.params.consumer_id = self.consumer.id
+        local cache_key = db.acls:cache_key(consumer_id, group)
+        local acl, _, err_t = db.acls:select_by_cache_key(cache_key)
+        if err_t then
+          return endpoints.handle_error(err_t)
+        end
 
-      local acls, err = crud.find_by_id_or_field(
-        dao_factory.acls,
-        { consumer_id = self.params.consumer_id },
-        self.params.group_or_id,
-        "group"
-      )
+        if acl then
+          self.params.acls = escape_uri(acl.id)
+        else
+          if self.req.method ~= "PUT" then
+            return kong.response.exit(404, { message = "Not found" })
+          end
 
-      if err then
-        return helpers.yield_error(err)
-      elseif #acls == 0 then
-        return helpers.responses.send_HTTP_NOT_FOUND()
+          self.params.acls = utils.uuid()
+        end
+
+        self.params.group = group
       end
-      self.params.group_or_id = nil
-
-      self.acl = acls[1]
     end,
 
-    GET = function(self, dao_factory, helpers)
-      return helpers.responses.send_HTTP_OK(self.acl)
-    end,
+    PUT = function(self, db, helpers, parent)
+      if not self.args.post.group and self.params.group then
+        self.args.post.group = self.params.group
+      end
 
-    PATCH = function(self, dao_factory)
-      crud.patch(self.params, dao_factory.acls, self.acl)
-    end,
-
-    DELETE = function(self, dao_factory)
-      crud.delete(self.acl, dao_factory.acls)
+      return parent()
     end
   }
 }

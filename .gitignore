@@ -3,6 +3,7 @@
 .buildpath
 .project
 .idea
+.env
 
 servroot*
 
@@ -13,3 +14,14 @@ kong*.yml
 # luacov
 luacov.*
 /doc
+
+# autodoc
+autodoc/output
+
+# ldoc
+spec/docs
+
+kong-build-tools
+bin/grpcurl
+
+*.so
